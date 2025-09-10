@@ -11,6 +11,15 @@ let houseParts = {
   other: [],
 };
 
+// Performance monitoring
+let lastRenderTime = 0;
+let needsRender = true;
+let stats = {
+  fps: 60,
+  frameCount: 0,
+  lastTime: performance.now()
+};
+
 // File path for the FBX model
 let modelPath = "/models/Cottage_MultiPart.fbx";
 
@@ -29,12 +38,22 @@ function init() {
   );
   camera.position.set(10, 8, 10);
 
-  // Renderer setup
-  renderer = new THREE.WebGLRenderer({antialias: true});
+  // Renderer setup with performance optimizations
+  renderer = new THREE.WebGLRenderer({
+    antialias: window.devicePixelRatio <= 1, // Only enable AA on low-DPI displays
+    powerPreference: "high-performance",
+    stencil: false // Disable stencil buffer if not needed
+  });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(window.devicePixelRatio);
+  
+  // Adaptive pixel ratio based on device capabilities
+  const pixelRatio = Math.min(window.devicePixelRatio, 2);
+  renderer.setPixelRatio(pixelRatio);
+  
+  // Optimized shadow settings
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap; // Faster than PCFSoft
+  renderer.shadowMap.autoUpdate = false; // Manual shadow updates
   document
     .getElementById("canvas-container")
     .appendChild(renderer.domElement);
@@ -54,7 +73,8 @@ function init() {
   // Load the house model
   loadHouseModel();
 
-  // Start animation
+  // Start animation and initial render
+  requestRender();
   animate();
 }
 
@@ -67,8 +87,10 @@ function setupLighting() {
   const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
   directionalLight.position.set(20, 20, 10);
   directionalLight.castShadow = true;
-  directionalLight.shadow.mapSize.width = 2048;
-  directionalLight.shadow.mapSize.height = 2048;
+  // Adaptive shadow resolution based on device performance
+  const shadowMapSize = getShadowMapSize();
+  directionalLight.shadow.mapSize.width = shadowMapSize;
+  directionalLight.shadow.mapSize.height = shadowMapSize;
   directionalLight.shadow.camera.near = 0.1;
   directionalLight.shadow.camera.far = 100;
   directionalLight.shadow.camera.left = -20;
@@ -81,6 +103,41 @@ function setupLighting() {
   const fillLight = new THREE.DirectionalLight(0x87ceeb, 0.3);
   fillLight.position.set(-10, 10, -10);
   scene.add(fillLight);
+}
+
+function getShadowMapSize() {
+  // Determine shadow quality based on device capabilities
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const hasGoodGPU = renderer.capabilities.maxTextureSize >= 4096;
+  
+  if (isMobile) return 512;  // Low quality for mobile
+  if (!hasGoodGPU) return 1024;  // Medium quality for older devices
+  return 2048;  // High quality for modern devices
+}
+
+function requestRender() {
+  needsRender = true;
+}
+
+function isDevelopment() {
+  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '';
+}
+
+function updateStats() {
+  stats.frameCount++;
+  const now = performance.now();
+  const delta = now - stats.lastTime;
+  
+  if (delta >= 1000) { // Update every second
+    stats.fps = Math.round((stats.frameCount * 1000) / delta);
+    stats.frameCount = 0;
+    stats.lastTime = now;
+    
+    // Debug performance in development
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      console.log(`FPS: ${stats.fps}`);
+    }
+  }
 }
 
 function createGround() {
@@ -97,10 +154,12 @@ function createGround() {
 }
 
 function loadHouseModel() {
-  // Enhanced debugging
-  console.log("=== Starting Model Load Debug ===");
-  console.log("Model path:", modelPath);
-  console.log("FBXLoader available:", typeof FBXLoader !== "undefined");
+  // Reduced logging for production performance
+  if (isDevelopment()) {
+    console.log("=== Starting Model Load Debug ===");
+    console.log("Model path:", modelPath);
+    console.log("FBXLoader available:", typeof FBXLoader !== "undefined");
+  }
   
   // Check if FBXLoader is available
   if (typeof FBXLoader === "undefined") {
@@ -120,18 +179,26 @@ function loadHouseModel() {
   loader.load(
     modelPath,
     function (object) {
-      console.log("✅ FBX model loaded successfully:", object);
+      if (isDevelopment()) {
+        console.log("✅ FBX model loaded successfully:", object);
+      }
       houseModel = object;
 
       // Scale and position the model
       object.scale.setScalar(0.01); // Adjust scale as needed
       object.position.set(0, 0, 0);
 
-      // Enable shadows
+      // Enable shadows with culling optimizations
       object.traverse(function (child) {
         if (child.isMesh) {
           child.castShadow = true;
           child.receiveShadow = true;
+          
+          // Optimize geometry for performance
+          if (child.geometry) {
+            child.geometry.computeBoundingSphere();
+            child.frustumCulled = true;
+          }
         }
       });
 
@@ -146,18 +213,26 @@ function loadHouseModel() {
       document.getElementById("model-status").textContent =
         "Model: Loaded ✓";
       
-      console.log("✅ Controls should now be visible");
+      if (isDevelopment()) {
+        console.log("✅ Controls should now be visible");
+      }
+      
+      // Update shadows after model load
+      renderer.shadowMap.needsUpdate = true;
+      requestRender();
 
       // Setup initial colors
       updateAllColors();
     },
     function (progress) {
-      const percentage = progress.total ? (progress.loaded / progress.total) * 100 : 0;
-      console.log(
-        "📊 Loading progress:",
-        Math.round(percentage) + "%",
-        `(${progress.loaded}/${progress.total} bytes)`
-      );
+      if (isDevelopment()) {
+        const percentage = progress.total ? (progress.loaded / progress.total) * 100 : 0;
+        console.log(
+          "📊 Loading progress:",
+          Math.round(percentage) + "%",
+          `(${progress.loaded}/${progress.total} bytes)`
+        );
+      }
     },
     function (error) {
       console.error("❌ Error loading FBX model:", error);
@@ -268,12 +343,14 @@ function analyzeModel(object) {
   let materialCount = 0;
   const materials = new Set();
   const partsList = document.getElementById("model-parts");
-  partsList.innerHTML = "";
+  if (partsList) partsList.innerHTML = "";
 
-  // Reset parts arrays
-  Object.keys(houseParts).forEach((key) => {
-    houseParts[key] = [];
-  });
+  // Reset parts arrays efficiently
+  houseParts.walls.length = 0;
+  houseParts.roof.length = 0;
+  houseParts.doors.length = 0;
+  houseParts.windows.length = 0;
+  houseParts.other.length = 0;
 
   object.traverse(function (child) {
     if (child.isMesh) {
@@ -299,11 +376,15 @@ function analyzeModel(object) {
       const hasMaterialArray = Array.isArray(child.material);
       const materialCount = hasMaterialArray ? child.material.length : (child.material ? 1 : 0);
       
-      console.log(`🔍 Analyzing ${child.name}: ${materialCount} materials`);
+      if (isDevelopment()) {
+        console.log(`🔍 Analyzing ${child.name}: ${materialCount} materials`);
+      }
       
       if (name.includes("cottage") && materialCount >= 4) {
         // Multi-material cottage - assign to all categories for independent control
-        console.log("📦 Multi-material cottage detected!");
+        if (isDevelopment()) {
+          console.log("📦 Multi-material cottage detected!");
+        }
         
         houseParts.walls.push(child);
         houseParts.roof.push(child);  
@@ -313,16 +394,22 @@ function analyzeModel(object) {
         partItem.style.borderLeft = "4px solid #4CAF50";
         partItem.textContent += " (Multi-Material - All Controls Active)";
         
-        console.log("✅ Multi-material cottage assigned to all controls");
+        if (isDevelopment()) {
+          console.log("✅ Multi-material cottage assigned to all controls");
+        }
       } else if (name.includes("cottage") || name.includes("house") || meshCount === 1) {
         // Single-material cottage - assign to walls only
-        console.log("📦 Single-material cottage detected, using walls control for entire cottage");
+        if (isDevelopment()) {
+          console.log("📦 Single-material cottage detected, using walls control for entire cottage");
+        }
         
         houseParts.walls.push(child);
         partItem.style.borderLeft = "4px solid #D2B48C";
         partItem.textContent += " (Walls Control = Entire Cottage)";
         
-        console.log("✅ Single-material cottage assigned to walls control");
+        if (isDevelopment()) {
+          console.log("✅ Single-material cottage assigned to walls control");
+        }
       } else if (
         name.includes("wall") ||
         name.includes("siding") ||
@@ -352,7 +439,7 @@ function analyzeModel(object) {
         partItem.style.borderLeft = "4px solid #888";
       }
 
-      partsList.appendChild(partItem);
+      if (partsList) partsList.appendChild(partItem);
     }
   });
 
@@ -361,19 +448,24 @@ function analyzeModel(object) {
     "model-details"
   ).textContent = `Parts: ${meshCount} | Materials: ${materialCount}`;
 
-  console.log("Model analysis:", {
-    meshes: meshCount,
-    materials: materialCount,
-    parts: houseParts,
-  });
+  if (isDevelopment()) {
+    console.log("Model analysis:", {
+      meshes: meshCount,
+      materials: materialCount,
+      parts: houseParts,
+    });
+    
+    // Debug: Show all mesh names to help with categorization
+    console.log("🔍 All mesh names found in model:");
+    object.traverse(function (child) {
+      if (child.isMesh) {
+        console.log(`  - "${child.name}" (type: ${child.type})`);
+      }
+    });
+  }
   
-  // Debug: Show all mesh names to help with categorization
-  console.log("🔍 All mesh names found in model:");
-  object.traverse(function (child) {
-    if (child.isMesh) {
-      console.log(`  - "${child.name}" (type: ${child.type})`);
-    }
-  });
+  // Trigger render after analysis
+  requestRender();
 }
 
 function getPartMaterialIndex(partType) {
@@ -391,10 +483,12 @@ function updatePartColor(partType, color) {
   const parts = houseParts[partType];
   const colorObj = new THREE.Color(color);
   
-  console.log(`🎨 Updating ${partType} color to ${color}`, {
-    partCount: parts.length,
-    parts: parts.map(p => p.name)
-  });
+  if (isDevelopment()) {
+    console.log(`🎨 Updating ${partType} color to ${color}`, {
+      partCount: parts.length,
+      parts: parts.map(p => p.name)
+    });
+  }
 
   parts.forEach((part) => {
     if (part.material) {
@@ -403,34 +497,49 @@ function updatePartColor(partType, color) {
         const materialIndex = getPartMaterialIndex(partType);
         if (materialIndex >= 0 && materialIndex < part.material.length) {
           part.material[materialIndex].color = colorObj.clone();
-          console.log(`  - Updated material slot ${materialIndex}: ${part.material[materialIndex].name || 'Unnamed'}`);
+          if (isDevelopment()) {
+            console.log(`  - Updated material slot ${materialIndex}: ${part.material[materialIndex].name || 'Unnamed'}`);
+          }
         } else {
-          console.warn(`  - Material slot ${materialIndex} not found for ${partType}`);
+          if (isDevelopment()) {
+            console.warn(`  - Material slot ${materialIndex} not found for ${partType}`);
+          }
         }
       } else {
         part.material.color = colorObj.clone();
-        console.log(`  - Updated material: ${part.material.name || 'Unnamed'}`);
+        if (isDevelopment()) {
+          console.log(`  - Updated material: ${part.material.name || 'Unnamed'}`);
+        }
       }
     } else {
-      console.warn(`  - Part ${part.name} has no material!`);
+      if (isDevelopment()) {
+        console.warn(`  - Part ${part.name} has no material!`);
+      }
     }
   });
+  
+  // Request render after color update
+  requestRender();
 }
 
 function updateAllColors() {
-  console.log("🌈 Updating all colors...");
+  if (isDevelopment()) {
+    console.log("🌈 Updating all colors...");
+  }
   
   const wallsEl = document.getElementById("walls-color");
   const roofEl = document.getElementById("roof-color");
   const doorsEl = document.getElementById("doors-color");
   const windowsEl = document.getElementById("windows-color");
   
-  console.log("Color inputs found:", {
-    walls: !!wallsEl,
-    roof: !!roofEl,
-    doors: !!doorsEl,
-    windows: !!windowsEl
-  });
+  if (isDevelopment()) {
+    console.log("Color inputs found:", {
+      walls: !!wallsEl,
+      roof: !!roofEl,
+      doors: !!doorsEl,
+      windows: !!windowsEl
+    });
+  }
   
   if (wallsEl) updatePartColor("walls", wallsEl.value);
   if (roofEl) updatePartColor("roof", roofEl.value);
@@ -475,55 +584,83 @@ function addMouseControls() {
     }
   });
 
-  // Smooth rotation
+  // Optimized smooth rotation with reduced updates
   function updateRotation() {
-    rotationX += (targetRotationX - rotationX) * 0.05;
-    rotationY += (targetRotationY - rotationY) * 0.05;
+    const rotationDamping = 0.05;
+    const prevRotationX = rotationX;
+    const prevRotationY = rotationY;
+    
+    rotationX += (targetRotationX - rotationX) * rotationDamping;
+    rotationY += (targetRotationY - rotationY) * rotationDamping;
 
-    camera.position.x =
-      Math.sin(rotationY) * Math.cos(rotationX) * radius;
+    // Only update camera if rotation changed significantly
+    const deltaX = Math.abs(rotationX - prevRotationX);
+    const deltaY = Math.abs(rotationY - prevRotationY);
     
-    // Calculate camera height and ensure it never goes below ground (y = 0.5 minimum)
-    const calculatedY = Math.sin(rotationX) * radius + 5;
-    camera.position.y = Math.max(0.5, calculatedY);
-    
-    camera.position.z =
-      Math.cos(rotationY) * Math.cos(rotationX) * radius;
-    camera.lookAt(0, 2, 0);
+    if (deltaX > 0.001 || deltaY > 0.001) {
+      camera.position.x = Math.sin(rotationY) * Math.cos(rotationX) * radius;
+      
+      // Calculate camera height and ensure it never goes below ground (y = 0.5 minimum)
+      const calculatedY = Math.sin(rotationX) * radius + 5;
+      camera.position.y = Math.max(0.5, calculatedY);
+      
+      camera.position.z = Math.cos(rotationY) * Math.cos(rotationX) * radius;
+      camera.lookAt(0, 2, 0);
+      
+      requestRender();
+    }
 
     requestAnimationFrame(updateRotation);
   }
   updateRotation();
 
-  // Zoom with mouse wheel
+  // Optimized zoom with mouse wheel
   renderer.domElement.addEventListener("wheel", (e) => {
+    const prevRadius = radius;
     radius += e.deltaY * 0.01;
     radius = Math.max(5, Math.min(50, radius));
+    
+    // Only render if radius changed significantly
+    if (Math.abs(radius - prevRadius) > 0.1) {
+      requestRender();
+    }
   });
 }
 
 function addEventListeners() {
-  console.log("🎛️ Setting up event listeners...");
+  if (isDevelopment()) {
+    console.log("🎛️ Setting up event listeners...");
+  }
   
   // Color input changes
   const wallsColorEl = document.getElementById("walls-color");
   if (wallsColorEl) {
-    console.log("✅ Walls color input found, adding listener");
+    if (isDevelopment()) {
+      console.log("✅ Walls color input found, adding listener");
+    }
     wallsColorEl.addEventListener("input", (e) => {
-      console.log("🎨 Walls color changed to:", e.target.value);
+      if (isDevelopment()) {
+        console.log("🎨 Walls color changed to:", e.target.value);
+      }
       updatePartColor("walls", e.target.value);
       const previewEl = document.getElementById("walls-preview");
       if (previewEl) previewEl.textContent = e.target.value;
     });
   } else {
-    console.error("❌ Walls color input not found!");
+    if (isDevelopment()) {
+      console.error("❌ Walls color input not found!");
+    }
   }
 
   const roofColorEl = document.getElementById("roof-color");
   if (roofColorEl) {
-    console.log("✅ Roof color input found, adding listener");
+    if (isDevelopment()) {
+      console.log("✅ Roof color input found, adding listener");
+    }
     roofColorEl.addEventListener("input", (e) => {
-      console.log("🎨 Roof color changed to:", e.target.value);
+      if (isDevelopment()) {
+        console.log("🎨 Roof color changed to:", e.target.value);
+      }
       updatePartColor("roof", e.target.value);
       const previewEl = document.getElementById("roof-preview");
       if (previewEl) previewEl.textContent = e.target.value;
@@ -532,9 +669,13 @@ function addEventListeners() {
 
   const doorsColorEl = document.getElementById("doors-color");
   if (doorsColorEl) {
-    console.log("✅ Doors color input found, adding listener");
+    if (isDevelopment()) {
+      console.log("✅ Doors color input found, adding listener");
+    }
     doorsColorEl.addEventListener("input", (e) => {
-      console.log("🎨 Doors color changed to:", e.target.value);
+      if (isDevelopment()) {
+        console.log("🎨 Doors color changed to:", e.target.value);
+      }
       updatePartColor("doors", e.target.value);
       const previewEl = document.getElementById("doors-preview");
       if (previewEl) previewEl.textContent = e.target.value;
@@ -543,9 +684,13 @@ function addEventListeners() {
 
   const windowsColorEl = document.getElementById("windows-color");
   if (windowsColorEl) {
-    console.log("✅ Windows color input found, adding listener");
+    if (isDevelopment()) {
+      console.log("✅ Windows color input found, adding listener");
+    }
     windowsColorEl.addEventListener("input", (e) => {
-      console.log("🎨 Windows color changed to:", e.target.value);
+      if (isDevelopment()) {
+        console.log("🎨 Windows color changed to:", e.target.value);
+      }
       updatePartColor("windows", e.target.value);
       const previewEl = document.getElementById("windows-preview");
       if (previewEl) previewEl.textContent = e.target.value;
@@ -583,22 +728,34 @@ function addEventListeners() {
     loadHouseModel();
   });
 
-  // Window resize
+  // Optimized window resize with debouncing
+  let resizeTimeout;
   window.addEventListener("resize", () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      requestRender();
+    }, 100); // Debounce resize events
   });
 }
 
 function animate() {
   requestAnimationFrame(animate);
+  
+  // Update performance stats
+  updateStats();
 
-  if (mixer) {
-    mixer.update(0.016);
+  // Only render when needed (performance optimization)
+  if (needsRender) {
+    if (mixer) {
+      mixer.update(0.016);
+    }
+
+    renderer.render(scene, camera);
+    needsRender = false;
   }
-
-  renderer.render(scene, camera);
 }
 
 // Initialize the scene
