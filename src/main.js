@@ -12,7 +12,7 @@ let houseParts = {
 };
 
 // File path for the FBX model
-let modelPath = "/models/Cottage_FREE.fbx";
+let modelPath = "/models/Cottage_MultiPart.fbx";
 
 function init() {
   // Scene setup
@@ -289,63 +289,40 @@ function analyzeModel(object) {
         }
       }
 
-      // For single-mesh models like "Cottage_Free", assign the mesh to all categories
-      // This allows color controls to work by applying different colors to different materials
+      // Categorize parts based on name and materials
       const name = child.name.toLowerCase();
       const partItem = document.createElement("div");
       partItem.className = "part-item";
       partItem.textContent = child.name || "Unnamed Part";
 
-      if (name.includes("cottage") || name.includes("house") || meshCount === 1) {
-        // For single-mesh cottage models, create multiple overlapping copies with different materials
-        console.log("📦 Single cottage mesh detected, creating multi-part overlays");
+      // Check if this mesh has multiple materials (multi-part cottage)
+      const hasMaterialArray = Array.isArray(child.material);
+      const materialCount = hasMaterialArray ? child.material.length : (child.material ? 1 : 0);
+      
+      console.log(`🔍 Analyzing ${child.name}: ${materialCount} materials`);
+      
+      if (name.includes("cottage") && materialCount >= 4) {
+        // Multi-material cottage - assign to all categories for independent control
+        console.log("📦 Multi-material cottage detected!");
         
-        const originalMaterial = child.material;
-        
-        // Create 4 identical cottage meshes, each with different materials
-        const wallsCottage = child.clone();
-        const roofCottage = child.clone();
-        const doorsCottage = child.clone(); 
-        const windowsCottage = child.clone();
-        
-        // Create different materials for each copy
-        wallsCottage.material = originalMaterial.clone();
-        roofCottage.material = originalMaterial.clone();
-        doorsCottage.material = originalMaterial.clone();
-        windowsCottage.material = originalMaterial.clone();
-        
-        // Set different colors and transparency
-        wallsCottage.material.color = new THREE.Color(0xD2B48C); // Tan walls
-        roofCottage.material.color = new THREE.Color(0x8B4513);   // Brown roof
-        doorsCottage.material.color = new THREE.Color(0x654321);  // Dark brown doors
-        windowsCottage.material.color = new THREE.Color(0x87CEEB); // Sky blue windows
-        
-        // Make overlays semi-transparent so they blend
-        roofCottage.material.transparent = true;
-        roofCottage.material.opacity = 0.7;
-        doorsCottage.material.transparent = true;
-        doorsCottage.material.opacity = 0.5;
-        windowsCottage.material.transparent = true;
-        windowsCottage.material.opacity = 0.3;
-        
-        // Add all copies to their respective categories
-        houseParts.walls.push(wallsCottage);
-        houseParts.roof.push(roofCottage);
-        houseParts.doors.push(doorsCottage);
-        houseParts.windows.push(windowsCottage);
-        
-        // Remove the original and add all copies to scene
-        const parent = child.parent;
-        parent.remove(child);
-        parent.add(wallsCottage);
-        parent.add(roofCottage);
-        parent.add(doorsCottage);
-        parent.add(windowsCottage);
+        houseParts.walls.push(child);
+        houseParts.roof.push(child);  
+        houseParts.doors.push(child);
+        houseParts.windows.push(child);
         
         partItem.style.borderLeft = "4px solid #4CAF50";
-        partItem.textContent = "Multi-Layer Cottage (All Parts Active)";
+        partItem.textContent += " (Multi-Material - All Controls Active)";
         
-        console.log("✅ Created 4 overlapping cottage copies for multi-part control");
+        console.log("✅ Multi-material cottage assigned to all controls");
+      } else if (name.includes("cottage") || name.includes("house") || meshCount === 1) {
+        // Single-material cottage - assign to walls only
+        console.log("📦 Single-material cottage detected, using walls control for entire cottage");
+        
+        houseParts.walls.push(child);
+        partItem.style.borderLeft = "4px solid #D2B48C";
+        partItem.textContent += " (Walls Control = Entire Cottage)";
+        
+        console.log("✅ Single-material cottage assigned to walls control");
       } else if (
         name.includes("wall") ||
         name.includes("siding") ||
@@ -399,6 +376,17 @@ function analyzeModel(object) {
   });
 }
 
+function getPartMaterialIndex(partType) {
+  // Map part types to material slot indices based on Blender script order
+  const materialSlots = {
+    'walls': 0,    // Cottage_Walls material
+    'roof': 1,     // Cottage_Roof material  
+    'doors': 2,    // Cottage_Doors material
+    'windows': 3   // Cottage_Windows material
+  };
+  return materialSlots[partType] ?? -1;
+}
+
 function updatePartColor(partType, color) {
   const parts = houseParts[partType];
   const colorObj = new THREE.Color(color);
@@ -411,10 +399,14 @@ function updatePartColor(partType, color) {
   parts.forEach((part) => {
     if (part.material) {
       if (Array.isArray(part.material)) {
-        part.material.forEach((mat) => {
-          mat.color = colorObj.clone();
-          console.log(`  - Updated material: ${mat.name || 'Unnamed'}`);
-        });
+        // Multi-material object - update specific material slot based on part type
+        const materialIndex = getPartMaterialIndex(partType);
+        if (materialIndex >= 0 && materialIndex < part.material.length) {
+          part.material[materialIndex].color = colorObj.clone();
+          console.log(`  - Updated material slot ${materialIndex}: ${part.material[materialIndex].name || 'Unnamed'}`);
+        } else {
+          console.warn(`  - Material slot ${materialIndex} not found for ${partType}`);
+        }
       } else {
         part.material.color = colorObj.clone();
         console.log(`  - Updated material: ${part.material.name || 'Unnamed'}`);
