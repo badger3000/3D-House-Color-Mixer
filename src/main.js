@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader';
 
-let scene, camera, renderer, house, mixer;
+let scene, camera, renderer, mixer;
 let houseModel = null;
 let houseParts = {
   walls: [],
@@ -145,6 +145,8 @@ function loadHouseModel() {
       document.getElementById("controls").style.display = "block";
       document.getElementById("model-status").textContent =
         "Model: Loaded ✓";
+      
+      console.log("✅ Controls should now be visible");
 
       // Setup initial colors
       updateAllColors();
@@ -287,13 +289,64 @@ function analyzeModel(object) {
         }
       }
 
-      // Categorize parts based on name
+      // For single-mesh models like "Cottage_Free", assign the mesh to all categories
+      // This allows color controls to work by applying different colors to different materials
       const name = child.name.toLowerCase();
       const partItem = document.createElement("div");
       partItem.className = "part-item";
       partItem.textContent = child.name || "Unnamed Part";
 
-      if (
+      if (name.includes("cottage") || name.includes("house") || meshCount === 1) {
+        // For single-mesh cottage models, create multiple overlapping copies with different materials
+        console.log("📦 Single cottage mesh detected, creating multi-part overlays");
+        
+        const originalMaterial = child.material;
+        
+        // Create 4 identical cottage meshes, each with different materials
+        const wallsCottage = child.clone();
+        const roofCottage = child.clone();
+        const doorsCottage = child.clone(); 
+        const windowsCottage = child.clone();
+        
+        // Create different materials for each copy
+        wallsCottage.material = originalMaterial.clone();
+        roofCottage.material = originalMaterial.clone();
+        doorsCottage.material = originalMaterial.clone();
+        windowsCottage.material = originalMaterial.clone();
+        
+        // Set different colors and transparency
+        wallsCottage.material.color = new THREE.Color(0xD2B48C); // Tan walls
+        roofCottage.material.color = new THREE.Color(0x8B4513);   // Brown roof
+        doorsCottage.material.color = new THREE.Color(0x654321);  // Dark brown doors
+        windowsCottage.material.color = new THREE.Color(0x87CEEB); // Sky blue windows
+        
+        // Make overlays semi-transparent so they blend
+        roofCottage.material.transparent = true;
+        roofCottage.material.opacity = 0.7;
+        doorsCottage.material.transparent = true;
+        doorsCottage.material.opacity = 0.5;
+        windowsCottage.material.transparent = true;
+        windowsCottage.material.opacity = 0.3;
+        
+        // Add all copies to their respective categories
+        houseParts.walls.push(wallsCottage);
+        houseParts.roof.push(roofCottage);
+        houseParts.doors.push(doorsCottage);
+        houseParts.windows.push(windowsCottage);
+        
+        // Remove the original and add all copies to scene
+        const parent = child.parent;
+        parent.remove(child);
+        parent.add(wallsCottage);
+        parent.add(roofCottage);
+        parent.add(doorsCottage);
+        parent.add(windowsCottage);
+        
+        partItem.style.borderLeft = "4px solid #4CAF50";
+        partItem.textContent = "Multi-Layer Cottage (All Parts Active)";
+        
+        console.log("✅ Created 4 overlapping cottage copies for multi-part control");
+      } else if (
         name.includes("wall") ||
         name.includes("siding") ||
         name.includes("exterior")
@@ -336,33 +389,61 @@ function analyzeModel(object) {
     materials: materialCount,
     parts: houseParts,
   });
+  
+  // Debug: Show all mesh names to help with categorization
+  console.log("🔍 All mesh names found in model:");
+  object.traverse(function (child) {
+    if (child.isMesh) {
+      console.log(`  - "${child.name}" (type: ${child.type})`);
+    }
+  });
 }
 
 function updatePartColor(partType, color) {
   const parts = houseParts[partType];
   const colorObj = new THREE.Color(color);
+  
+  console.log(`🎨 Updating ${partType} color to ${color}`, {
+    partCount: parts.length,
+    parts: parts.map(p => p.name)
+  });
 
   parts.forEach((part) => {
     if (part.material) {
       if (Array.isArray(part.material)) {
         part.material.forEach((mat) => {
           mat.color = colorObj.clone();
+          console.log(`  - Updated material: ${mat.name || 'Unnamed'}`);
         });
       } else {
         part.material.color = colorObj.clone();
+        console.log(`  - Updated material: ${part.material.name || 'Unnamed'}`);
       }
+    } else {
+      console.warn(`  - Part ${part.name} has no material!`);
     }
   });
 }
 
 function updateAllColors() {
-  updatePartColor("walls", document.getElementById("walls-color").value);
-  updatePartColor("roof", document.getElementById("roof-color").value);
-  updatePartColor("doors", document.getElementById("doors-color").value);
-  updatePartColor(
-    "windows",
-    document.getElementById("windows-color").value
-  );
+  console.log("🌈 Updating all colors...");
+  
+  const wallsEl = document.getElementById("walls-color");
+  const roofEl = document.getElementById("roof-color");
+  const doorsEl = document.getElementById("doors-color");
+  const windowsEl = document.getElementById("windows-color");
+  
+  console.log("Color inputs found:", {
+    walls: !!wallsEl,
+    roof: !!roofEl,
+    doors: !!doorsEl,
+    windows: !!windowsEl
+  });
+  
+  if (wallsEl) updatePartColor("walls", wallsEl.value);
+  if (roofEl) updatePartColor("roof", roofEl.value);
+  if (doorsEl) updatePartColor("doors", doorsEl.value);
+  if (windowsEl) updatePartColor("windows", windowsEl.value);
 }
 
 function addMouseControls() {
@@ -389,10 +470,14 @@ function addMouseControls() {
     if (isMouseDown) {
       targetRotationY += (e.clientX - mouseX) * 0.01;
       targetRotationX += (e.clientY - mouseY) * 0.01;
+      
+      // Constrain vertical rotation to prevent going below ground
+      // -0.1 allows slight downward angle, Math.PI/2.5 allows looking down at ~72 degrees max
       targetRotationX = Math.max(
-        -Math.PI / 3,
-        Math.min(Math.PI / 3, targetRotationX)
+        -0.1,  // Prevent going below horizontal (ground level)
+        Math.min(Math.PI / 2.5, targetRotationX)  // Allow looking down but not too much
       );
+      
       mouseX = e.clientX;
       mouseY = e.clientY;
     }
@@ -405,7 +490,11 @@ function addMouseControls() {
 
     camera.position.x =
       Math.sin(rotationY) * Math.cos(rotationX) * radius;
-    camera.position.y = Math.sin(rotationX) * radius + 5;
+    
+    // Calculate camera height and ensure it never goes below ground (y = 0.5 minimum)
+    const calculatedY = Math.sin(rotationX) * radius + 5;
+    camera.position.y = Math.max(0.5, calculatedY);
+    
     camera.position.z =
       Math.cos(rotationY) * Math.cos(rotationX) * radius;
     camera.lookAt(0, 2, 0);
@@ -422,35 +511,54 @@ function addMouseControls() {
 }
 
 function addEventListeners() {
+  console.log("🎛️ Setting up event listeners...");
+  
   // Color input changes
-  document
-    .getElementById("walls-color")
-    .addEventListener("input", (e) => {
+  const wallsColorEl = document.getElementById("walls-color");
+  if (wallsColorEl) {
+    console.log("✅ Walls color input found, adding listener");
+    wallsColorEl.addEventListener("input", (e) => {
+      console.log("🎨 Walls color changed to:", e.target.value);
       updatePartColor("walls", e.target.value);
-      document.getElementById("walls-preview").textContent =
-        e.target.value;
+      const previewEl = document.getElementById("walls-preview");
+      if (previewEl) previewEl.textContent = e.target.value;
     });
+  } else {
+    console.error("❌ Walls color input not found!");
+  }
 
-  document.getElementById("roof-color").addEventListener("input", (e) => {
-    updatePartColor("roof", e.target.value);
-    document.getElementById("roof-preview").textContent = e.target.value;
-  });
+  const roofColorEl = document.getElementById("roof-color");
+  if (roofColorEl) {
+    console.log("✅ Roof color input found, adding listener");
+    roofColorEl.addEventListener("input", (e) => {
+      console.log("🎨 Roof color changed to:", e.target.value);
+      updatePartColor("roof", e.target.value);
+      const previewEl = document.getElementById("roof-preview");
+      if (previewEl) previewEl.textContent = e.target.value;
+    });
+  }
 
-  document
-    .getElementById("doors-color")
-    .addEventListener("input", (e) => {
+  const doorsColorEl = document.getElementById("doors-color");
+  if (doorsColorEl) {
+    console.log("✅ Doors color input found, adding listener");
+    doorsColorEl.addEventListener("input", (e) => {
+      console.log("🎨 Doors color changed to:", e.target.value);
       updatePartColor("doors", e.target.value);
-      document.getElementById("doors-preview").textContent =
-        e.target.value;
+      const previewEl = document.getElementById("doors-preview");
+      if (previewEl) previewEl.textContent = e.target.value;
     });
+  }
 
-  document
-    .getElementById("windows-color")
-    .addEventListener("input", (e) => {
+  const windowsColorEl = document.getElementById("windows-color");
+  if (windowsColorEl) {
+    console.log("✅ Windows color input found, adding listener");
+    windowsColorEl.addEventListener("input", (e) => {
+      console.log("🎨 Windows color changed to:", e.target.value);
       updatePartColor("windows", e.target.value);
-      document.getElementById("windows-preview").textContent =
-        e.target.value;
+      const previewEl = document.getElementById("windows-preview");
+      if (previewEl) previewEl.textContent = e.target.value;
     });
+  }
 
   // Preset color clicks
   document.querySelectorAll(".preset-color").forEach((preset) => {
