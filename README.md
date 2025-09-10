@@ -6,6 +6,8 @@ A modern web application that lets you visualize and customize the colors of dif
 ![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
 
+Preview: https://e7482934.3d-house-color-mixer.pages.dev/
+
 ## ✨ Features
 
 - 🎨 **Real-time Color Customization** - Change colors of walls, roof, doors, and windows instantly
@@ -19,22 +21,26 @@ A modern web application that lets you visualize and customize the colors of dif
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Node.js (version 16 or higher)
 - npm or yarn
 
 ### Installation
 
 1. **Clone or download the project**
+
    ```bash
    cd 3D-house
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Start development server**
+
    ```bash
    npm run dev
    ```
@@ -64,13 +70,13 @@ A modern web application that lets you visualize and customize the colors of dif
 
 ### Available Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start development server with hot reload |
-| `npm run build` | Create optimized production build |
-| `npm run preview` | Preview the production build locally |
-| `npm run lint` | Run ESLint to check code quality |
-| `npm run format` | Format code using Prettier |
+| Command           | Description                              |
+| ----------------- | ---------------------------------------- |
+| `npm run dev`     | Start development server with hot reload |
+| `npm run build`   | Create optimized production build        |
+| `npm run preview` | Preview the production build locally     |
+| `npm run lint`    | Run ESLint to check code quality         |
+| `npm run format`  | Format code using Prettier               |
 
 ### Project Structure
 
@@ -105,6 +111,7 @@ A modern web application that lets you visualize and customize the colors of dif
 #### Adding New House Parts
 
 1. **Update the `houseParts` object** in `src/main.js`:
+
    ```javascript
    let houseParts = {
      walls: [],
@@ -117,6 +124,7 @@ A modern web application that lets you visualize and customize the colors of dif
    ```
 
 2. **Add detection logic** in the `analyzeModel()` function:
+
    ```javascript
    } else if (name.includes("foundation") || name.includes("base")) {
      houseParts.foundations.push(child);
@@ -137,22 +145,25 @@ A modern web application that lets you visualize and customize the colors of dif
 - Safari
 - Edge
 
-*Note: Requires WebGL support for 3D rendering*
+_Note: Requires WebGL support for 3D rendering_
 
 ## 🔧 Troubleshooting
 
 ### Model Not Loading?
+
 - ✅ Check that your `.fbx` file is in `public/models/`
 - ✅ Ensure you're using the development server (`npm run dev`)
 - ✅ Verify the file path in the input field is correct
 - ✅ Check browser console for detailed error messages
 
 ### Performance Issues?
+
 - 📊 Use smaller/optimized FBX models (< 50MB recommended)
 - 🔧 Adjust model scale in `loadHouseModel()` function
 - 💻 Ensure your device has adequate WebGL support
 
 ### Build Errors?
+
 - 🧹 Clear node_modules: `rm -rf node_modules && npm install`
 - 🔄 Update dependencies: `npm update`
 - 📝 Check console for specific error messages
