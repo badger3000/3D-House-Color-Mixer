@@ -1,0 +1,240 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap");
+
+body {
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(
+    135deg,
+    #87ceeb 0%,
+    #98fb98 50%,
+    #f0e68c 100%
+  );
+  overflow: hidden;
+  font-family: "Inter", sans-serif;
+}
+
+#canvas-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+#loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 24px;
+  font-weight: 600;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 30px;
+  border-radius: 15px;
+  text-align: center;
+  z-index: 1000;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 20px auto;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+#info {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  color: white;
+  z-index: 100;
+  font-size: 16px;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 20px;
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  max-width: 300px;
+}
+
+h1 {
+  margin: 0 0 15px 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: white;
+}
+
+#controls {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.9);
+  padding: 25px;
+  border-radius: 20px;
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 100;
+  min-width: 320px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: none; /* Hidden until model loads */
+}
+
+.control-section {
+  margin-bottom: 25px;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.control-section h3 {
+  color: white;
+  margin: 0 0 15px 0;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.control-group {
+  margin-bottom: 15px;
+}
+
+.control-label {
+  display: block;
+  color: white;
+  margin-bottom: 8px;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.color-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+input[type="color"] {
+  width: 60px;
+  height: 40px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background: transparent;
+}
+
+.color-preview {
+  flex: 1;
+  height: 40px;
+  border-radius: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+.preset-colors {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.preset-color {
+  width: 100%;
+  height: 30px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.preset-color:hover {
+  border-color: white;
+  transform: scale(1.05);
+}
+
+.model-info {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 15px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  color: white;
+}
+
+.model-parts {
+  max-height: 150px;
+  overflow-y: auto;
+  margin-top: 10px;
+}
+
+.part-item {
+  padding: 5px;
+  margin: 2px 0;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.part-item:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.part-item.selected {
+  background: rgba(100, 200, 255, 0.3);
+}
+
+#file-path-input {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 20px;
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  max-width: 400px;
+}
+
+#file-path {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  margin-top: 10px;
+}
+
+#load-model {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#load-model:hover {
+  transform: translateY(-2px);
+}

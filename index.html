@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Three.js House Color Mixer</title>
+    <link rel="stylesheet" href="/src/styles/main.css">
+  </head>
+  <body>
+    <div id="loading">
+      <div class="loading-spinner"></div>
+      <div>Loading 3D Model...</div>
+      <div style="font-size: 14px; margin-top: 10px; opacity: 0.8">
+        Please wait while we load your house model
+      </div>
+    </div>
+
+    <div id="info">
+      <h1>🏠 House Color Mixer</h1>
+      <p>
+        <strong>Mouse:</strong> Rotate camera<br />
+        <strong>Scroll:</strong> Zoom in/out<br />
+        <strong>Controls:</strong> Customize each part!
+      </p>
+      <div id="model-status">Model: Not loaded</div>
+    </div>
+
+    <div id="file-path-input">
+      <h4 style="margin: 0 0 10px 0">FBX Model Path</h4>
+      <input
+        type="text"
+        id="file-path"
+        placeholder="/models/Cottage_FREE.fbx"
+        value="/models/Cottage_FREE.fbx"
+      />
+      <button id="load-model">Load Model</button>
+      <div style="font-size: 12px; margin-top: 10px; opacity: 0.7">
+        Place your .fbx file in the public/models folder and update the path above
+      </div>
+    </div>
+
+    <div id="controls">
+      <div class="model-info">
+        <h4 style="margin: 0 0 10px 0">Model Information</h4>
+        <div id="model-details">Parts: 0 | Materials: 0</div>
+        <div class="model-parts" id="model-parts">
+          <!-- Will be populated with model parts -->
+        </div>
+      </div>
+
+      <div class="control-section">
+        <h3>🏠 Walls</h3>
+        <div class="control-group">
+          <div class="color-input-group">
+            <input type="color" id="walls-color" value="#D2B48C" />
+            <div class="color-preview" id="walls-preview">Tan</div>
+          </div>
+          <div class="preset-colors">
+            <div class="preset-color" style="background: #f5deb3" data-target="walls" data-color="#F5DEB3"></div>
+            <div class="preset-color" style="background: #deb887" data-target="walls" data-color="#DEB887"></div>
+            <div class="preset-color" style="background: #d2b48c" data-target="walls" data-color="#D2B48C"></div>
+            <div class="preset-color" style="background: #bc8f8f" data-target="walls" data-color="#BC8F8F"></div>
+            <div class="preset-color" style="background: #f0f8ff" data-target="walls" data-color="#F0F8FF"></div>
+            <div class="preset-color" style="background: #ffe4e1" data-target="walls" data-color="#FFE4E1"></div>
+            <div class="preset-color" style="background: #ffefd5" data-target="walls" data-color="#FFEFD5"></div>
+            <div class="preset-color" style="background: #f5f5dc" data-target="walls" data-color="#F5F5DC"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="control-section">
+        <h3>🏠 Roof</h3>
+        <div class="control-group">
+          <div class="color-input-group">
+            <input type="color" id="roof-color" value="#8B4513" />
+            <div class="color-preview" id="roof-preview">Brown</div>
+          </div>
+          <div class="preset-colors">
+            <div class="preset-color" style="background: #8b4513" data-target="roof" data-color="#8B4513"></div>
+            <div class="preset-color" style="background: #a0522d" data-target="roof" data-color="#A0522D"></div>
+            <div class="preset-color" style="background: #cd853f" data-target="roof" data-color="#CD853F"></div>
+            <div class="preset-color" style="background: #696969" data-target="roof" data-color="#696969"></div>
+            <div class="preset-color" style="background: #2f4f4f" data-target="roof" data-color="#2F4F4F"></div>
+            <div class="preset-color" style="background: #800000" data-target="roof" data-color="#800000"></div>
+            <div class="preset-color" style="background: #556b2f" data-target="roof" data-color="#556B2F"></div>
+            <div class="preset-color" style="background: #191970" data-target="roof" data-color="#191970"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="control-section">
+        <h3>🚪 Doors</h3>
+        <div class="control-group">
+          <div class="color-input-group">
+            <input type="color" id="doors-color" value="#654321" />
+            <div class="color-preview" id="doors-preview">Dark Brown</div>
+          </div>
+          <div class="preset-colors">
+            <div class="preset-color" style="background: #654321" data-target="doors" data-color="#654321"></div>
+            <div class="preset-color" style="background: #8b4513" data-target="doors" data-color="#8B4513"></div>
+            <div class="preset-color" style="background: #a0522d" data-target="doors" data-color="#A0522D"></div>
+            <div class="preset-color" style="background: #800000" data-target="doors" data-color="#800000"></div>
+            <div class="preset-color" style="background: #000080" data-target="doors" data-color="#000080"></div>
+            <div class="preset-color" style="background: #008000" data-target="doors" data-color="#008000"></div>
+            <div class="preset-color" style="background: #2f4f4f" data-target="doors" data-color="#2F4F4F"></div>
+            <div class="preset-color" style="background: #4b0082" data-target="doors" data-color="#4B0082"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="control-section">
+        <h3>🪟 Windows</h3>
+        <div class="control-group">
+          <div class="color-input-group">
+            <input type="color" id="windows-color" value="#87CEEB" />
+            <div class="color-preview" id="windows-preview">Sky Blue</div>
+          </div>
+          <div class="preset-colors">
+            <div class="preset-color" style="background: #87ceeb" data-target="windows" data-color="#87CEEB"></div>
+            <div class="preset-color" style="background: #add8e6" data-target="windows" data-color="#ADD8E6"></div>
+            <div class="preset-color" style="background: #b0e0e6" data-target="windows" data-color="#B0E0E6"></div>
+            <div class="preset-color" style="background: #f0f8ff" data-target="windows" data-color="#F0F8FF"></div>
+            <div class="preset-color" style="background: #e6e6fa" data-target="windows" data-color="#E6E6FA"></div>
+            <div class="preset-color" style="background: #ffe4e1" data-target="windows" data-color="#FFE4E1"></div>
+            <div class="preset-color" style="background: #f5fffa" data-target="windows" data-color="#F5FFFA"></div>
+            <div class="preset-color" style="background: #f0ffff" data-target="windows" data-color="#F0FFFF"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
